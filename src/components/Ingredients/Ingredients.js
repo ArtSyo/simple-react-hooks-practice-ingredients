@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useCallback } from 'react';
+import React, { useReducer, useCallback } from 'react';
 
 import IngredientForm from './IngredientForm';
 import Search from './Search';
@@ -18,11 +18,31 @@ const ingredientReducer = (currentIngredient, action) => {
   }
 };
 
+const httpReducer = (currentHttpState, action) => {
+  switch (action.type) {
+    case 'SEND':
+      return { loading: true, error: null };
+    case 'RESPONSE':
+      return { ...currentHttpState, loading: false };
+    case 'ERROR':
+      return { loading: false, error: action.errorData };
+    case 'CLEAR':
+      return { ...currentHttpState, error: null };
+    default:
+      throw new Error('should not be reached!');
+  }
+};
+
 function Ingredients() {
   const [ingredient, dispatch] = useReducer(ingredientReducer, []);
+  const [httpState, dispatchHttp] = useReducer(httpReducer, {
+    loading: false,
+    error: false,
+  });
+
   // const [ingredient, setIngredient] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState();
+  // const [isLoading, setIsLoading] = useState(false);
+  // const [error, setError] = useState();
 
   const filterIngredientsHandler = useCallback((filteredIngredients) => {
     // setIngredient(filteredIngredients);
@@ -30,14 +50,16 @@ function Ingredients() {
   }, []);
 
   const addIngredientHandler = (newIngredient) => {
-    setIsLoading(true);
+    // setIsLoading(true);
+    dispatchHttp({ type: 'SEND' });
     fetch('https://learn-hooks-ingredients.firebaseio.com/ingredients.json', {
       method: 'POST',
       body: JSON.stringify(newIngredient),
       headers: { 'Content-Type': 'application.json' },
     })
       .then((response) => {
-        setIsLoading(false);
+        // setIsLoading(false);
+        dispatchHttp({ type: 'RESPONSE' });
         return response.json();
       })
       .then((responseData) => {
@@ -61,7 +83,8 @@ function Ingredients() {
   };
 
   const removeIngredientHandler = (id) => {
-    setIsLoading(true);
+    // setIsLoading(true);
+    dispatchHttp({ type: 'SEND' });
     fetch(
       `https://learn-hooks-ingredients.firebaseio.com/ingredients/${id}.json`,
       {
@@ -69,29 +92,39 @@ function Ingredients() {
       }
     )
       .then((response) => {
-        setIsLoading(false);
+        dispatchHttp({ type: 'RESPONSE' });
+
+        // setIsLoading(false);
+
         // setIngredient((prevIngredients) =>
         //   prevIngredients.filter((ingEl) => ingEl.id !== id)
         // );
-        dispatch({type: 'DELETE', id: id})
+        dispatch({ type: 'DELETE', id: id });
       })
       .catch((error) => {
-        setError('Something went wrong: ' + error.message);
-        setIsLoading(false);
+        dispatchHttp({
+          type: 'ERROR',
+          errorData: 'Something went wrong: ' + error.message,
+        });
+        // setError('Something went wrong: ' + error.message);
+        // setIsLoading(false);
       });
   };
 
   const clearError = () => {
-    setError(null);
+    // setError(null);
+    dispatchHttp({ type: 'CLEAR' });
   };
 
   return (
     <div className="App">
-      {error && <ErrorModal onClose={clearError}>{error}</ErrorModal>}
+      {httpState.error && (
+        <ErrorModal onClose={clearError}>{httpState.error}</ErrorModal>
+      )}
 
       <IngredientForm
         addIngredientHandler={addIngredientHandler}
-        loading={isLoading}
+        loading={httpState.loading}
       />
 
       <section>
